@@ -1,23 +1,21 @@
-import { Form, ActionPanel, Action, showToast, LaunchType } from "@raycast/api";
-import { createDeeplink, DeeplinkType, runAppleScript } from "@raycast/utils";
+import { Form, ActionPanel, Action, showHUD, popToRoot } from "@raycast/api";
+import { runAppleScript } from "@raycast/utils";
 import { useEffect, useState } from "react";
 
 type Values = {
-  textfield: string;
-  textarea: string;
-  datepicker: Date;
-  checkbox: boolean;
-  dropdown: string;
-  tokeneditor: string[];
+  title: string;
+  url: string;
+  list: "Read Later" | "Watch Later" | "Listen Later";
+  note: string;
 };
 
 const DELIMITER = "*****";
 
 export default function Command() {
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
-  const [selection, setSelection] = useState("");
   const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState("");
+  const [list, setList] = useState("Read Later");
+  const [note, setNote] = useState("");
 
   async function getTabInfo() {
     const data = await runAppleScript(
@@ -31,33 +29,42 @@ end tell
 
 return tabTitle & "${DELIMITER}" & tabUrl`,
     );
+
     const [title, url] = data.split(DELIMITER);
-    console.log({ title });
-    console.log({ url });
+
     setTitle(title);
-    setUrl(url);
+    setNote(url);
     setLoading(false);
   }
-  // await showHUD(res);
 
   useEffect(() => {
     getTabInfo();
   }, []);
 
   async function handleSubmit(values: Values) {
-    console.log("submit");
+    setLoading(true);
+
+    const { list, title, note } = values;
+
     await runAppleScript(
       `
-    tell application "Reminders"
-        set newList to (make new list with properties {name:"To Listen"})
-        set newReminder to (make new reminder with properties {name:"My Reminder", body:"This is a new reminder", URL:"https://www.example.com"})
-        set tagList to {"later", "Tag2"}
-        set tags of newReminder to tagList
-        set list of newReminder to newList
-    end tell
-    `,
+tell application "Reminders"
+  if not (exists list "${list}") then
+  	make new list with properties {name:"${list}"}
+  end if
+
+	set mylist to list "${list}"
+
+	tell mylist
+		make new reminder with properties {name:"${title}", body:"${note}"}
+	end tell
+end tell
+`,
     );
-    await showToast({ title: "Submitted form", message: "See logs for submitted values" });
+
+    setLoading(false);
+    await showHUD(`New item saved to ${list}`);
+    await popToRoot({ clearSearchBar: true });
   }
 
   return (
@@ -65,27 +72,17 @@ return tabTitle & "${DELIMITER}" & tabUrl`,
       isLoading={loading}
       actions={
         <ActionPanel>
-          <Action.CreateQuicklink
-            quicklink={{
-              type: DeeplinkType.Extension,
-              command: "reminders",
-              launchType: LaunchType.Background,
-              arguments: {
-                name: "test",
-              },
-            }}
-          />
+          <Action.SubmitForm onSubmit={handleSubmit} />
         </ActionPanel>
       }
     >
-      <Form.TextField id="title" title="Title" placeholder="Title" value={title} />
-      <Form.TextField id="url" title="URL" placeholder="URL" value={url} />
-      <Form.Dropdown id="dropdown" title="Dropdown" autoFocus value="read-later">
-        <Form.Dropdown.Item value="read-later" title="Read later ☕" />
-        <Form.Dropdown.Item value="watch-later" title="Watch later 📺" />
-        <Form.Dropdown.Item value="listen-later" title="Listen later 🎶" />
+      <Form.TextField id="title" title="Title" placeholder="Title" value={title} onChange={(e) => setTitle(e)} />
+      <Form.Dropdown id="dropdown" title="Dropdown" autoFocus value={list} onChange={(e) => setList(e)}>
+        <Form.Dropdown.Item value="Read Later" title="Read Later" />
+        <Form.Dropdown.Item value="Watch Later" title="Watch Later" />
+        <Form.Dropdown.Item value="Listen Later" title="Listen Later" />
       </Form.Dropdown>
-      <Form.TextArea id="notes" title="Notes" />
+      <Form.TextArea id="note" title="Notes" value={note} onChange={(e) => setNote(e)} />
     </Form>
   );
 }
