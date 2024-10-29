@@ -77,7 +77,7 @@ end tell
       }
     >
       <Form.TextField id="title" title="Title" placeholder="Title" value={title} onChange={(e) => setTitle(e)} />
-      <Form.Dropdown id="dropdown" title="Dropdown" autoFocus value={list} onChange={(e) => setList(e)}>
+      <Form.Dropdown id="list" title="Dropdown" autoFocus value={list} onChange={(e) => setList(e)}>
         <Form.Dropdown.Item value="Read Later" title="Read Later" />
         <Form.Dropdown.Item value="Watch Later" title="Watch Later" />
         <Form.Dropdown.Item value="Listen Later" title="Listen Later" />
